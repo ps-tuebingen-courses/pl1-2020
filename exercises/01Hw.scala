@@ -13,7 +13,7 @@ Write in the email:
 - Fachsemester
 - name of your GitHub account (register under github.com if you do not have one yet)
 - optionally: programming languages you already know
-​
+
 You will receive an invitation to our forum for Programmiersprachen 1.
 In the "Organisatorisches" post you will find everything necessary
 to get you started. Read that post first and follow the instructions.
@@ -35,7 +35,7 @@ via the GitHub repo for your team and for this exercise.
 */
 
 object Hw01 {
-​
+
 /**
 Consider the following language of propositional logic formulae:
 */
