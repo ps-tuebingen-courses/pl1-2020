@@ -1,3 +1,5 @@
+import scala.language.implicitConversions
+
 /**
 First-Order Functions
 =====================
@@ -20,16 +22,16 @@ sealed abstract class Exp
 case class Num(n: Int) extends Exp
 case class Add(lhs: Exp, rhs: Exp) extends Exp
 case class Mul(lhs: Exp, rhs: Exp) extends Exp
-case class Id(x: Symbol) extends Exp 
-case class With(x: Symbol, xdef: Exp, body: Exp) extends Exp
+case class Id(x: String) extends Exp 
+case class With(x: String, xdef: Exp, body: Exp) extends Exp
 /* We use implicits again to make example programs less verbose. */
 implicit def num2exp(n: Int) = Num(n)
-implicit def sym2exp(x: Symbol) = Id(x)
+implicit def sym2exp(x: String) = Id(x)
 
 /**
 The new language constructs for first-order functions: 
 */
-case class Call(f: Symbol, args: List[Exp]) extends Exp // functions are called by name
+case class Call(f: String, args: List[Exp]) extends Exp // functions are called by name
 
 /** 
 A function has a number of formal args and a body. A first-order function also
@@ -37,14 +39,14 @@ has a name. To make the invariant that there can only be one function for each
 name explicit, we store functions in the form of a map from function names to FunDefs: 
 */
 
-case class FunDef(args: List[Symbol], body: Exp)
-type Funs = Map[Symbol,FunDef]
+case class FunDef(args: List[String], body: Exp)
+type Funs = Map[String,FunDef]
 
 /** 
 The substitution for the new language is a straightforward extension of the former one. 
 */
 
-def subst(e: Exp,i: Symbol,v: Num) : Exp =  e match {
+def subst(e: Exp,i: String,v: Num) : Exp =  e match {
     case Num(n) => e
     case Id(x) => if (x == i) v else e
     case Add(l,r) => Add( subst(l,i,v), subst(r,i,v))
@@ -62,14 +64,14 @@ We pass the map of functions as an additional parameter.
 
 def eval(funs: Funs, e: Exp) : Int = e match {
   case Num(n) => n
-  case Id(x) => sys.error("unbound identifier: " + x.name)
+  case Id(x) => sys.error("unbound identifier: " + x)
   case Add(l,r) => eval(funs,l) + eval(funs,r)
   case Mul(l,r) => eval(funs,l) * eval(funs,r)
   case With(x, xdef, body) => eval(funs,subst(body,x,Num(eval(funs,xdef)))) 
   case Call(f,args) => {
      val fd = funs(f) // lookup function definition 
      val vargs = args.map( eval(funs,_)) // evaluate function arguments
-     if (fd.args.size != vargs.size) sys.error("number of paramters in call to " + f.name + " does not match")
+     if (fd.args.size != vargs.size) sys.error("number of paramters in call to " + f + " does not match")
      // We construct the function body to be evaluated by subsequently substituting all formal
      // arguments with their respective argument values.
      // If we have only a single argument "fd.arg" and a single argument value "varg", 
@@ -88,9 +90,9 @@ As an exercise, think about how to support a common namespace for function names
 */
 
 /* A test case */
-val someFuns = Map( 'adder -> FunDef(List('a,'b), Add('a,'b)),
-                 'doubleadder -> FunDef(List('a,'x), Add(Call('adder, List('a,5)),Call('adder, List('x,7)))))
-assert( eval(someFuns,Call('doubleadder,List(2,3))) == 17)
+val someFuns = Map( "adder" -> FunDef(List("a","b"), Add("a","b")),
+                 "doubleadder" -> FunDef(List("a","x"), Add(Call("adder", List("a",5)),Call("adder", List("x",7)))))
+assert( eval(someFuns,Call("doubleadder",List(2,3))) == 17)
 
 /**
 The scope of function definitions:
@@ -103,14 +105,14 @@ Exercise: Can a function also invoke itself? Is this useful?
 We will now study an environment-based version of the interpreter. To motivate environments, consider the following sample program: 
 */
  
-val testProg = With('x, 1, With('y, 2, With('z, 3, Add('x,Add('y,'z)))))
+val testProg = With("x", 1, With("y", 2, With("z", 3, Add("x",Add("y","z")))))
 
 /** 
 When considering the ``With`` case of the interpreter, the interpreter will subsequently produce and evaluate the following intermediate expressions: 
 */
 
-val testProgAfterOneStep     = With('y, 2, With('z, 3, Add(1,Add('y,'z))))
-val testProgAfterTwoSteps    = With('z, 3, Add(1,Add(2,'z)))
+val testProgAfterOneStep     = With("y", 2, With("z", 3, Add(1,Add("y","z"))))
+val testProgAfterTwoSteps    = With("z", 3, Add(1,Add(2,"z")))
 val testProgAfterThreeSteps  = Add(1,Add(2,3))
 
 /**
@@ -123,7 +125,7 @@ substitutions, called _environment_. It tells us which identifiers are supposed 
 is captured in the following type definition: 
 */
 
- type Env = Map[Symbol,Int]
+ type Env = Map[String,Int]
 
 /** 
 Initially, we have no substitutions to perform, so the repository is empty. Every time we encounter a construct (a with or application)
@@ -144,14 +146,14 @@ def evalWithEnv(funs: Funs, env: Env, e: Exp) : Int = e match {
   case Call(f,args) => {
      val fd = funs(f) // lookup function definition 
      val vargs = args.map(evalWithEnv(funs,env,_)) // evaluate function arguments
-     if (fd.args.size != vargs.size) sys.error("number of paramters in call to " + f.name + " does not match")
+     if (fd.args.size != vargs.size) sys.error("number of paramters in call to " + f + " does not match")
      // We construct the environment by associating each formal argument to its actual value    
      val newenv = Map() ++ fd.args.zip(vargs)
      evalWithEnv(funs,newenv,fd.body)
   }   
 }
 
-assert( evalWithEnv(someFuns,Map.empty, Call('doubleadder,List(2,3))) == 17)
+assert( evalWithEnv(someFuns,Map.empty, Call("doubleadder",List(2,3))) == 17)
 
 /** 
 In the interpreter above, we have extended the empty environment when constructing ``newenv``. A conceivable alternative is to
@@ -173,14 +175,14 @@ def evalDynScope(funs: Funs, env: Env, e: Exp) : Int = e match {
   }   
 }
 
-assert( evalDynScope(someFuns,Map.empty, Call('doubleadder,List(2,3))) == 17)
+assert( evalDynScope(someFuns,Map.empty, Call("doubleadder",List(2,3))) == 17)
 
 /** 
 Does this make a difference? Yes, it does. Here is an example: 
 */
 
-val funnyFun = Map( 'funny -> FunDef(List('a), Add('a,'b)))
-assert(evalDynScope(funnyFun, Map.empty, With('b, 3, Call('funny,List(4)))) == 7)
+val funnyFun = Map( "funny" -> FunDef(List("a"), Add("a","b")))
+assert(evalDynScope(funnyFun, Map.empty, With("b", 3, Call("funny",List(4)))) == 7)
 
 /** 
 Obviously this interpreter is "buggy" in the sense that it does not agree with the substitution-based interpreter. But is this semantics reasonable? 
