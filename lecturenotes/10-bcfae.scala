@@ -270,7 +270,7 @@ def gc(env: Env, store:Store) : Store = {
   }
 
   val marked = mark(allAddrInEnv(env)) // mark ...
-  store.retain(marked(_))           // and sweep!
+  store.view.filterKeys(marked(_)).toMap           // and sweep!
 }
 
 val teststore = Map(
