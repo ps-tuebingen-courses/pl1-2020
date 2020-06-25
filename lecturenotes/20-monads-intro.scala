@@ -260,6 +260,11 @@ def sequence[M[_],A](l: List[M[A]])(implicit m: Monad[M]) : M[List[A]] = l match
 def mapM[M[_],A,B](f : A => M[B], l: List[A])(implicit m: Monad[M]) : M[List[B]] =
   sequence(l.map(f))
 
+// join is another useful function to unwrap a layer of monads
+// in category theory, monads are defined via unit (denoted by the greek letter "eta") 
+// and join ("mu") instead of unit and bind. There are additional "naturality" and 
+// "coherence conditions" that make the category theory definition equivalent to ours.
+def join[M[_],A](x : M[M[A]])(implicit m: Monad[M]) : M[A] = m.bind(x, (y : M[A]) => y)
   
 /** Here are some other common monads: 
 
