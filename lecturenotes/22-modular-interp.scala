@@ -65,13 +65,13 @@ in an interpreter for boolean formulas. */
 
 object ReaderExample2 extends ReaderMonadImp {
     trait Exp
-    case class Id(x: Symbol) extends Exp
+    case class Id(x: String) extends Exp
     case class And(l: Exp, r: Exp) extends Exp
     case class Or(l: Exp, r: Exp) extends Exp
-    type R = Map[Symbol,Boolean]
+    type R = Map[String,Boolean]
 
     // note that the signature of eval is identical to
-    // def eval(e: Exp) : Map[Symbol,Boolean] => Boolean
+    // def eval(e: Exp) : Map[String,Boolean] => Boolean
     // that is, we curry eval to make it applicable to
     // the reader monad.
 
@@ -289,11 +289,11 @@ trait If0 extends Numbers {
 }
 
 trait Functions extends Expressions with ReaderMonad {
-  type Env = Map[Symbol,Value]
+  type Env = Map[String,Value]
   override type R = Env
 
   case class ClosureV(f: Fun, env: Env) extends Value
-  case class Fun(param: Symbol, body: Exp) extends Exp {
+  case class Fun(param: String, body: Exp) extends Exp {
     def eval = for { env <- ask } yield ClosureV(this, env)
   }	
   case class App(f: Exp, a: Exp) extends Exp {
@@ -304,13 +304,13 @@ trait Functions extends Expressions with ReaderMonad {
 		       } yield res
 
   }
-  case class Id(x: Symbol) extends Exp {
+  case class Id(x: String) extends Exp {
     def eval = for {
 	             env <- ask
 			   } yield env(x)
   }
-  implicit def id2exp(x: Symbol) = Id(x)
-  def wth(x: Symbol, xdef: Exp, body: Exp) : Exp = App(Fun(x,body),xdef)
+  implicit def id2exp(x: String) = Id(x)
+  def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x,body),xdef)
 }  
 
 
@@ -362,7 +362,7 @@ trait Boxes extends Expressions with StateMonad  {
 }
 
 trait Letcc extends Expressions with ContinuationMonad with ReaderMonad{
-  override type R = Map[Symbol,Value]
+  override type R = Map[String,Value]
   
   // We introduce a new application form CApp instead of using App because we cannot extend App
   case class CApp(f: Exp, a: Exp) extends Exp {
@@ -373,7 +373,7 @@ trait Letcc extends Expressions with ContinuationMonad with ReaderMonad{
            res <- fv match { case ContV(f) => f(av) }
          } yield res
   }
-  case class Letcc(param: Symbol, body: Exp) extends Exp {
+  case class Letcc(param: String, body: Exp) extends Exp {
     override def eval : M[Value] = callcc[Value,Value](k => local( env => env + (param -> ContV(k)), body.eval))
   }  
   case class ContV(f: Value => M[Value]) extends Value
@@ -388,22 +388,22 @@ object AE extends Arithmetic with IdentityMonad {
 assert(AE.aetest.eval == AE.NumV(6)) 
 
 object FAELang extends Functions with Arithmetic with ReaderMonadImpl {
-  val faetest = App(Fun('x, Add('x, 1)), Add(2,3))
+  val faetest = App(Fun("x", Add("x", 1)), Add(2,3))
   assert(faetest.eval(Map.empty) == NumV(6))
 }
 object BCFAE extends Boxes with Arithmetic with Functions with If0 with ReaderStateMonadImpl {
-  val test = wth('switch, NewBox(0),
-                wth('toggle, Fun('dummy, If0(OpenBox('switch),
-                                          Seq(SetBox('switch, 1), 1),
-                                          Seq(SetBox('switch, 0), 0))),
-                             Add(App('toggle,42), App('toggle,42))))  
+  val test = wth("switch", NewBox(0),
+                wth("toggle", Fun("dummy", If0(OpenBox("switch"),
+                                          Seq(SetBox("switch", 1), 1),
+                                          Seq(SetBox("switch", 0), 0))),
+                             Add(App("toggle",42), App("toggle",42))))  
 }  
 
 assert(BCFAE.test.eval(Map.empty)(Map.empty)._1 == BCFAE.NumV(1))
 
 object FAEwLetcc extends Arithmetic with Functions with If0 with Letcc with ReaderContinuationMonadImpl {
   override type T = Value
-  val testprog = Add(1, Letcc('k, Add(2, CApp('k, 3))))  
+  val testprog = Add(1, Letcc("k", Add(2, CApp("k", 3))))  
 }  
 
 assert(FAEwLetcc.testprog.eval(Map.empty)(identity) == FAEwLetcc.NumV(4))
